@@ -129,6 +129,4 @@ Original MIDI Blaster project by Luke The Maker ([Patreon](https://www.patreon.c
 
 ## SoundFont Licensing
 
-This project includes the FluidR3_GM.sf2 SoundFont, developed by Frank Wen and contributors.
-
-It is licensed under the MIT License. See the LICENSE file for full details.
+- `Jnsgm2.sf2`: public domain GM soundfont by Jordi Navarro Subirana.
