@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import logging
 import os
 import random
 import re
@@ -42,11 +43,19 @@ HOME = os.path.expanduser("~")
 MIDI_FOLDER = "/media/mididisk"
 SOUNDFONT_ROOT = f"{HOME}/soundfonts"
 STATE_FILE = f"{HOME}/.midiblaster_state.json"
-USB_DEVICE = '/dev/sda'
+USB_DEVICE = "/dev/sda"
 
 # Add mount retry logic
 MOUNT_RETRIES = 5
 MOUNT_RETRY_DELAY = 1.0
+
+# Logger setup
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    stream=sys.stdout,
+)
+logger = logging.getLogger(__name__)
 
 
 class MidiBlaster:
@@ -68,8 +77,8 @@ class MidiBlaster:
         self.auto_advance = True
         self.last_refresh_time = time.time()
         self.state_save_timer = None
-        self.state_save_delay = 10.0 
-        
+        self.state_save_delay = 10.0
+
         # Hardware & System
         self.bus = smbus.SMBus(1)
         pygame.init()
@@ -89,62 +98,101 @@ class MidiBlaster:
     def setup_gpio(self):
         GPIO.setmode(GPIO.BCM)
         button_pins = [
-            BUTTON_PIN_PLAY_PAUSE, BUTTON_PIN_NEXT_TRACK, BUTTON_PIN_PREV_TRACK,
-            BUTTON_PIN_NEXT_SOUNDFONT, BUTTON_PIN_PREV_SOUNDFONT,
-            BUTTON_PIN_NEXT_CATEGORY, BUTTON_PIN_RANDOM_SONG
+            BUTTON_PIN_PLAY_PAUSE,
+            BUTTON_PIN_NEXT_TRACK,
+            BUTTON_PIN_PREV_TRACK,
+            BUTTON_PIN_NEXT_SOUNDFONT,
+            BUTTON_PIN_PREV_SOUNDFONT,
+            BUTTON_PIN_NEXT_CATEGORY,
+            BUTTON_PIN_RANDOM_SONG,
         ]
         for pin in button_pins:
             GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        GPIO.add_event_detect(BUTTON_PIN_PLAY_PAUSE, GPIO.FALLING, callback=self.handle_play_pause, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_NEXT_TRACK, GPIO.FALLING, callback=self.handle_next_track, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_PREV_TRACK, GPIO.FALLING, callback=self.handle_prev_track, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_NEXT_SOUNDFONT, GPIO.FALLING, callback=self.handle_next_soundfont, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_PREV_SOUNDFONT, GPIO.FALLING, callback=self.handle_prev_soundfont, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_RANDOM_SONG, GPIO.FALLING, callback=self.handle_random_song, bouncetime=BOUNCETIME)
-        GPIO.add_event_detect(BUTTON_PIN_NEXT_CATEGORY, GPIO.FALLING, callback=self.handle_next_category, bouncetime=BOUNCETIME)
+        GPIO.add_event_detect(
+            BUTTON_PIN_PLAY_PAUSE,
+            GPIO.FALLING,
+            callback=self.handle_play_pause,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_NEXT_TRACK,
+            GPIO.FALLING,
+            callback=self.handle_next_track,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_PREV_TRACK,
+            GPIO.FALLING,
+            callback=self.handle_prev_track,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_NEXT_SOUNDFONT,
+            GPIO.FALLING,
+            callback=self.handle_next_soundfont,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_PREV_SOUNDFONT,
+            GPIO.FALLING,
+            callback=self.handle_prev_soundfont,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_RANDOM_SONG,
+            GPIO.FALLING,
+            callback=self.handle_random_song,
+            bouncetime=BOUNCETIME,
+        )
+        GPIO.add_event_detect(
+            BUTTON_PIN_NEXT_CATEGORY,
+            GPIO.FALLING,
+            callback=self.handle_next_category,
+            bouncetime=BOUNCETIME,
+        )
 
     @staticmethod
     def is_midi_file(file_path):
-        return os.path.isfile(file_path) and file_path.lower().endswith('.mid')
+        return os.path.isfile(file_path) and file_path.lower().endswith(".mid")
 
     @staticmethod
     def is_soundfont_file(file_path):
-        return os.path.isfile(file_path) and file_path.lower().endswith('.sf2')
+        return os.path.isfile(file_path) and file_path.lower().endswith(".sf2")
 
     # -- Button Handlers --
     def handle_play_pause(self, channel):
         with self.state_lock:
             if self.is_playing:
-                print("[DEBUG] Play/Stop pressed, stopping playback.")
+                logger.debug("Play/Stop pressed, stopping playback.")
                 self.stop_playback()
             elif self.midi_files:
-                print("[DEBUG] Play/Stop pressed, starting playback.")
+                logger.debug("Play/Stop pressed, starting playback.")
                 self.play_midi(self.midi_files[self.current_midi])
 
     def handle_next_track(self, channel):
         with self.state_lock:
-            print("[DEBUG] Next track pressed.")
+            logger.debug("Next track pressed.")
             self.next_track()
 
     def handle_prev_track(self, channel):
         with self.state_lock:
-            print("[DEBUG] Previous track pressed.")
+            logger.debug("Previous track pressed.")
             self.prev_track()
 
     def handle_next_soundfont(self, channel):
         with self.state_lock:
-            print("[DEBUG] Next soundfont pressed.")
+            logger.debug("Next soundfont pressed.")
             self.next_soundfont()
 
     def handle_prev_soundfont(self, channel):
         with self.state_lock:
-            print("[DEBUG] Previous soundfont pressed.")
+            logger.debug("Previous soundfont pressed.")
             self.prev_soundfont()
 
     def handle_random_song(self, channel):
         with self.state_lock:
-            print("[DEBUG] Random track pressed.")
+            logger.debug("Random track pressed.")
             self.random_track()
 
     def handle_next_category(self, channel):
@@ -154,16 +202,23 @@ class MidiBlaster:
             if not self.category_pending:
                 self.category_preview_index = self.current_category_index
             self.category_pending = True
-            self.category_preview_index = (self.category_preview_index + 1) % len(self.soundfont_categories)
+            self.category_preview_index = (self.category_preview_index + 1) % len(
+                self.soundfont_categories
+            )
             self.last_category_change_time = time.time()
-            print(f"[DEBUG] Next category pressed. Previewing: {self.soundfont_categories[self.category_preview_index]}")
+            logger.debug(
+                "Next category pressed. Previewing: %s",
+                self.soundfont_categories[self.category_preview_index],
+            )
             self.update_lcd()
 
     # -- LCD Methods --
     def lcd_byte(self, bits, mode):
         self.bus.write_byte(I2C_ADDR, mode | (bits & 0xF0) | 0b00000100 | LCD_BACKLIGHT)
         self.bus.write_byte(I2C_ADDR, mode | (bits & 0xF0) | LCD_BACKLIGHT)
-        self.bus.write_byte(I2C_ADDR, mode | ((bits << 4) & 0xF0) | 0b00000100 | LCD_BACKLIGHT)
+        self.bus.write_byte(
+            I2C_ADDR, mode | ((bits << 4) & 0xF0) | 0b00000100 | LCD_BACKLIGHT
+        )
         self.bus.write_byte(I2C_ADDR, mode | ((bits << 4) & 0xF0) | LCD_BACKLIGHT)
 
     def lcd_init(self):
@@ -185,7 +240,7 @@ class MidiBlaster:
         self.lcd_string("     MIDI     ", LCD_LINE_1)
         self.lcd_string("    BLASTER   ", LCD_LINE_2)
         time.sleep(2)
-        
+
     def update_lcd(self):
         if self.category_pending and self.soundfont_categories:
             preview_cat = self.soundfont_categories[self.category_preview_index][:16]
@@ -194,111 +249,155 @@ class MidiBlaster:
             return
 
         if self.midi_files and 0 <= self.current_midi < len(self.midi_files):
-            display_name = re.sub(r'^\d+\W*', '', self.midi_files[self.current_midi])
+            display_name = re.sub(r"^\d+\W*", "", self.midi_files[self.current_midi])
             song = display_name[:15].ljust(15)
         else:
             song = "No MIDI Files".ljust(15)
 
         song += ">" if self.is_playing else " "
-        sf = self.soundfonts[self.current_soundfont_index][:16] if self.soundfonts else "No Soundfonts"
-        
+        sf = (
+            self.soundfonts[self.current_soundfont_index][:16]
+            if self.soundfonts
+            else "No Soundfonts"
+        )
+
         self.lcd_string(song, LCD_LINE_1)
         self.lcd_string(sf, LCD_LINE_2)
 
     # -- File and Device Management --
     def ensure_floppy_mounted(self):
         if not os.path.exists(MIDI_FOLDER):
-            print(f"[DEBUG] Mount directory {MIDI_FOLDER} does not exist, creating.")
+            logger.debug(f"Mount directory {MIDI_FOLDER} does not exist, creating.")
             try:
-                subprocess.run(['sudo', 'mkdir', '-p', MIDI_FOLDER], check=True)
+                subprocess.run(["sudo", "mkdir", "-p", MIDI_FOLDER], check=True)
             except Exception as e:
-                print(f"[ERROR] Failed to create mount directory {MIDI_FOLDER}: {e}")
+                logger.error(f"Failed to create mount directory {MIDI_FOLDER}: {e}")
                 return False
 
-        if MIDI_FOLDER in subprocess.run(['mount'], capture_output=True, text=True).stdout:
+        if (
+            MIDI_FOLDER
+            in subprocess.run(["mount"], capture_output=True, text=True).stdout
+        ):
             return True
 
-        print(f"[DEBUG] {MIDI_FOLDER} not mounted. Attempting to mount {USB_DEVICE}...")
+        logger.debug(f"{MIDI_FOLDER} not mounted. Attempting to mount {USB_DEVICE}...")
         for i in range(MOUNT_RETRIES):
             try:
-                print(f"[DEBUG] Mount attempt {i+1}/{MOUNT_RETRIES}...")
+                logger.debug(f"Mount attempt {i+1}/{MOUNT_RETRIES}...")
                 mount_result = subprocess.run(
-                    ['sudo', 'mount', '-o', 'noatime,nofail', USB_DEVICE, MIDI_FOLDER],
-                    check=False, capture_output=True, text=True, timeout=10
+                    ["sudo", "mount", "-o", "noatime,nofail", USB_DEVICE, MIDI_FOLDER],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
                 )
                 if mount_result.returncode == 0:
-                    print(f"[DEBUG] Successfully mounted {USB_DEVICE} to {MIDI_FOLDER}.")
+                    logger.debug(f"Successfully mounted {USB_DEVICE} to {MIDI_FOLDER}.")
                     return True
                 else:
-                    print(f"[DEBUG] Mount attempt failed. RC: {mount_result.returncode}, Error: {mount_result.stderr.strip()}")
+                    logger.debug(
+                        f"Mount attempt failed. RC: {mount_result.returncode}, "
+                        f"Error: {mount_result.stderr.strip()}"
+                    )
                     if not os.path.exists(USB_DEVICE):
-                        print(f"[DEBUG] Device node {USB_DEVICE} does not exist. Waiting...")
+                        logger.debug(
+                            f"Device node {USB_DEVICE} does not exist. " f"Waiting..."
+                        )
             except subprocess.TimeoutExpired:
-                print(f"[ERROR] Mount attempt {i+1} timed out.")
+                logger.error(f"Mount attempt {i+1} timed out.")
             except Exception as e:
-                print(f"[ERROR] An unexpected error occurred during mount attempt {i+1}: {e}")
-            
+                logger.error(
+                    f"An unexpected error occurred during mount attempt " f"{i+1}: {e}"
+                )
+
             if i < MOUNT_RETRIES - 1:
                 time.sleep(MOUNT_RETRY_DELAY)
-        
-        print(f"[ERROR] Failed to mount {USB_DEVICE} to {MIDI_FOLDER} after {MOUNT_RETRIES} attempts.")
+
+        logger.error(
+            f"Failed to mount {USB_DEVICE} to {MIDI_FOLDER} "
+            f"after {MOUNT_RETRIES} attempts."
+        )
         return False
 
     def load_soundfont_categories(self):
         self.soundfont_categories = sorted(
-            [d for d in os.listdir(SOUNDFONT_ROOT) if os.path.isdir(os.path.join(SOUNDFONT_ROOT, d))],
-            key=lambda x: (x != 'Other Games', x.lower())
+            [
+                d
+                for d in os.listdir(SOUNDFONT_ROOT)
+                if os.path.isdir(os.path.join(SOUNDFONT_ROOT, d))
+            ],
+            key=lambda x: (x != "Other Games", x.lower()),
         )
         if "Other Games" in self.soundfont_categories:
             self.current_category_index = self.soundfont_categories.index("Other Games")
         else:
             self.current_category_index = 0
-            
+
     def load_soundfonts(self):
         current_category = self.soundfont_categories[self.current_category_index]
         category_path = os.path.join(SOUNDFONT_ROOT, current_category)
-        self.soundfonts = sorted([
-            f for f in os.listdir(category_path) 
-            if self.is_soundfont_file(os.path.join(category_path, f))
-        ])
+        self.soundfonts = sorted(
+            [
+                f
+                for f in os.listdir(category_path)
+                if self.is_soundfont_file(os.path.join(category_path, f))
+            ]
+        )
 
     def initialize_midi_files(self):
         if os.path.exists(MIDI_FOLDER) and os.access(MIDI_FOLDER, os.R_OK):
             try:
-                self.midi_files = sorted([
-                    f for f in os.listdir(MIDI_FOLDER) 
-                    if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
-                ])
+                self.midi_files = sorted(
+                    [
+                        f
+                        for f in os.listdir(MIDI_FOLDER)
+                        if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
+                    ]
+                )
             except Exception as e:
-                print(f"[ERROR] Unable to initialize midi files: {e}")
-            
+                logger.error(f"Unable to initialize midi files: {e}")
+
             if self.midi_files:
                 self.current_midi = 0
         self.last_refresh_time = time.time()
         self.update_lcd()
-            
+
     def refresh_midi_files(self):
         self.ensure_floppy_mounted()
         check_midi_files = []
         if os.path.exists(MIDI_FOLDER) and os.access(MIDI_FOLDER, os.R_OK):
             try:
-                 check_midi_files = sorted([
-                    f for f in os.listdir(MIDI_FOLDER) 
-                    if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
-                ])
+                check_midi_files = sorted(
+                    [
+                        f
+                        for f in os.listdir(MIDI_FOLDER)
+                        if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
+                    ]
+                )
             except Exception as e:
-                print(f"[DEBUG] Error listing {MIDI_FOLDER}: {e}. Treating as empty.")
-        
-        if check_midi_files != self.midi_files:
-            print(f"[DEBUG] Detected change in MIDI files. Old: {len(self.midi_files)}, New: {len(check_midi_files)}")
-            self.stop_playback()
+                logger.debug("Error listing %s: %s. Treating as empty.", MIDI_FOLDER, e)
 
-            print(f"[DEBUG] Attempting unmount to refresh file system view.")
+        if check_midi_files != self.midi_files:
+            logger.debug(
+                "Detected change in MIDI files. Old: %d, New: %d",
+                len(self.midi_files),
+                len(check_midi_files),
+            )
+            if self.is_playing:
+                logger.info("Playback stopped: MIDI files changed or floppy removed.")
+            self.stop_playback()
+            logger.debug("Attempting unmount to refresh file system view.")
             try:
-                subprocess.run(['sudo', 'umount', '-l', MIDI_FOLDER], check=False, capture_output=True, text=True, timeout=5)
+                subprocess.run(
+                    ["sudo", "umount", "-l", MIDI_FOLDER],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
                 time.sleep(0.5)
             except Exception as e:
-                print(f"[ERROR] An unexpected error occurred during unmount: {e}")
+                logger.error("An unexpected error occurred during unmount: %s", e)
 
             self.ensure_floppy_mounted()
             time.sleep(0.5)
@@ -306,13 +405,16 @@ class MidiBlaster:
             reloaded_midi_files = []
             if os.path.exists(MIDI_FOLDER) and os.access(MIDI_FOLDER, os.R_OK):
                 try:
-                     reloaded_midi_files = sorted([
-                        f for f in os.listdir(MIDI_FOLDER) 
-                        if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
-                    ])
+                    reloaded_midi_files = sorted(
+                        [
+                            f
+                            for f in os.listdir(MIDI_FOLDER)
+                            if self.is_midi_file(os.path.join(MIDI_FOLDER, f))
+                        ]
+                    )
                 except Exception as e:
-                     print(f"[ERROR] Unable to re-list MIDI files after remount: {e}")
-            
+                    logger.error("Unable to re-list MIDI files after remount: %s", e)
+
             self.midi_files = reloaded_midi_files
             self.current_midi = 0 if self.midi_files else -1
             self.update_lcd()
@@ -323,17 +425,22 @@ class MidiBlaster:
         with self.state_lock:
             if not self.soundfont_categories or not self.soundfonts:
                 return
-            
+
             current_state = {
                 "category": self.soundfont_categories[self.current_category_index],
                 "soundfont": self.soundfonts[self.current_soundfont_index],
             }
 
             try:
-                with open(STATE_FILE, 'w') as f:
+                with open(STATE_FILE, "w") as f:
                     json.dump(current_state, f, indent=4)
+                logger.info(
+                    "Saved state: category=%s, soundfont=%s",
+                    current_state["category"],
+                    current_state["soundfont"],
+                )
             except IOError as e:
-                print(f"[ERROR] Could not write to state file {STATE_FILE}: {e}")
+                logger.error("Could not write to state file %s: %s", STATE_FILE, e)
 
     def _load_state(self):
         with self.state_lock:
@@ -341,15 +448,17 @@ class MidiBlaster:
                 return
 
             if not os.path.exists(STATE_FILE):
-                print(f"[INFO] State file not found at {STATE_FILE}. Creating with default.")
+                logger.info(
+                    "State file not found at %s. Creating with default.", STATE_FILE
+                )
                 self._save_state()
                 return
-            
+
             try:
-                with open(STATE_FILE, 'r') as f:
+                with open(STATE_FILE, "r") as f:
                     current_state = json.load(f)
             except (IOError, json.JSONDecodeError) as e:
-                print(f"[ERROR] Could not read or parse state file {STATE_FILE}: {e}")
+                logger.error("Could not read or parse state file %s: %s", STATE_FILE, e)
                 return
 
             saved_category = current_state.get("category")
@@ -363,39 +472,52 @@ class MidiBlaster:
                 if saved_soundfont in self.soundfonts:
                     soundfont_index = self.soundfonts.index(saved_soundfont)
                     self.current_soundfont_index = soundfont_index
-                    print(f"[INFO] Loaded state: {saved_category} -> {saved_soundfont}")
+                    logger.info(
+                        "Loaded state: %s -> %s", saved_category, saved_soundfont
+                    )
                 else:
-                    print(f"[WARN] Saved soundfont '{saved_soundfont}' not found. Using default.")
+                    logger.warning(
+                        "Saved soundfont '%s' not found. Using default.",
+                        saved_soundfont,
+                    )
             else:
-                print(f"[WARN] Saved category '{saved_category}' not found. Using default.")
-  
+                logger.warning(
+                    "Saved category '%s' not found. Using default.", saved_category
+                )
 
     def _schedule_save_state(self):
         with self.state_lock:
             # Cancel any existing running timer
             if self.state_save_timer:
                 self.state_save_timer.cancel()
-            
+
             # Create a timer that will save the state once elapsed
-            self.state_save_timer = threading.Timer(self.state_save_delay, self._save_state)
+            self.state_save_timer = threading.Timer(
+                self.state_save_delay, self._save_state
+            )
             self.state_save_timer.start()
-            
 
     # -- Playback Control --
     def play_midi(self, midi_file):
         with self.state_lock:
             self.stop_playback()
             current_category = self.soundfont_categories[self.current_category_index]
-            sf_path = os.path.join(SOUNDFONT_ROOT, current_category, self.soundfonts[self.current_soundfont_index])
+            sf_path = os.path.join(
+                SOUNDFONT_ROOT,
+                current_category,
+                self.soundfonts[self.current_soundfont_index],
+            )
             midi_path = os.path.join(MIDI_FOLDER, midi_file)
-            print(f"[DEBUG] Playing: {midi_file}")
+            logger.info("Playing: %s", midi_file)
             try:
-                self.fs_proc = subprocess.Popen(["fluidsynth", "-ni", "-g", "2.0", sf_path, midi_path])
+                self.fs_proc = subprocess.Popen(
+                    ["fluidsynth", "-ni", "-g", "2.0", sf_path, midi_path]
+                )
                 self.is_playing = True
                 self.auto_advance = True
                 self.update_lcd()
             except Exception as e:
-                print(f"[ERROR] Could not start fluidsynth: {e}")
+                logger.error("Could not start fluidsynth: %s", e)
                 self.is_playing = False
                 self.fs_proc = None
                 self.update_lcd()
@@ -407,15 +529,20 @@ class MidiBlaster:
                     self.fs_proc.terminate()
                     self.fs_proc.wait(timeout=2)
                 except Exception as e:
-                    print(f"[ERROR] Error during stop_playback: {e}")
+                    logger.error("Error during stop_playback: %s", e)
+            if self.is_playing:
+                logger.info("Stopped playback.")
             self.fs_proc = None
             self.is_playing = False
             self.auto_advance = False
             self.update_lcd()
 
     def next_soundfont(self):
-        if not self.soundfonts: return
-        self.current_soundfont_index = (self.current_soundfont_index + 1) % len(self.soundfonts)
+        if not self.soundfonts:
+            return
+        self.current_soundfont_index = (self.current_soundfont_index + 1) % len(
+            self.soundfonts
+        )
         self._schedule_save_state()
         if self.is_playing and self.midi_files:
             self.play_midi(self.midi_files[self.current_midi])
@@ -423,8 +550,11 @@ class MidiBlaster:
             self.update_lcd()
 
     def prev_soundfont(self):
-        if not self.soundfonts: return
-        self.current_soundfont_index = (self.current_soundfont_index - 1 + len(self.soundfonts)) % len(self.soundfonts)
+        if not self.soundfonts:
+            return
+        self.current_soundfont_index = (
+            self.current_soundfont_index - 1 + len(self.soundfonts)
+        ) % len(self.soundfonts)
         self._schedule_save_state()
         if self.is_playing and self.midi_files:
             self.play_midi(self.midi_files[self.current_midi])
@@ -432,7 +562,8 @@ class MidiBlaster:
             self.update_lcd()
 
     def next_track(self):
-        if not self.midi_files: return
+        if not self.midi_files:
+            return
         self.current_midi = (self.current_midi + 1) % len(self.midi_files)
         if self.is_playing:
             self.play_midi(self.midi_files[self.current_midi])
@@ -440,38 +571,48 @@ class MidiBlaster:
             self.update_lcd()
 
     def prev_track(self):
-        if not self.midi_files: return
-        self.current_midi = (self.current_midi - 1 + len(self.midi_files)) % len(self.midi_files)
+        if not self.midi_files:
+            return
+        self.current_midi = (self.current_midi - 1 + len(self.midi_files)) % len(
+            self.midi_files
+        )
         if self.is_playing:
             self.play_midi(self.midi_files[self.current_midi])
         else:
             self.update_lcd()
 
     def random_track(self):
-        if not self.midi_files: return
+        if not self.midi_files:
+            return
         self.current_midi = random.randint(0, len(self.midi_files) - 1)
         if self.is_playing:
             self.play_midi(self.midi_files[self.current_midi])
         else:
             self.update_lcd()
-            
+
     def cleanup(self):
-        print("[INFO] Cleaning up resources.")
+        logger.info("Cleaning up resources.")
         self._save_state()
         self.stop_playback()
         GPIO.cleanup()
         pygame.quit()
-        
+
     def run(self):
         """Main loop for the MIDI Blaster."""
         try:
             while True:
                 current_time = time.time()
-                
+
                 with self.state_lock:
                     # Handle category selection confirmation
-                    if self.category_pending and (current_time - self.last_category_change_time >= CATEGORY_CONFIRM_DELAY):
-                        print(f"[DEBUG] Category selection confirmed: {self.soundfont_categories[self.category_preview_index]}.")
+                    if self.category_pending and (
+                        current_time - self.last_category_change_time
+                        >= CATEGORY_CONFIRM_DELAY
+                    ):
+                        logger.debug(
+                            "Category selection confirmed: %s.",
+                            self.soundfont_categories[self.category_preview_index],
+                        )
                         self.current_category_index = self.category_preview_index
                         self.category_pending = False
                         self.load_soundfonts()
@@ -484,13 +625,17 @@ class MidiBlaster:
                             self.update_lcd()
 
                     # Handle auto-advance
-                    if self.is_playing and self.fs_proc and self.fs_proc.poll() is not None:
+                    if (
+                        self.is_playing
+                        and self.fs_proc
+                        and self.fs_proc.poll() is not None
+                    ):
                         if self.auto_advance:
-                            print("[DEBUG] Auto-advancing to next track.")
+                            logger.debug("Auto-advancing to next track.")
                             self.next_track()
-                        else: # Manual stop
-                            self.auto_advance = True # Reset for next playback
-                            self.is_playing = False # Update status
+                        else:  # Manual stop
+                            self.auto_advance = True  # Reset for next playback
+                            self.is_playing = False  # Update status
                             self.update_lcd()
 
                 # Refresh MIDI files
@@ -499,7 +644,7 @@ class MidiBlaster:
 
                 time.sleep(0.05)
         except KeyboardInterrupt:
-            print("\n[INFO] Keyboard interrupt detected. Exiting.")
+            logger.info("\nKeyboard interrupt detected. Exiting.")
         finally:
             self.cleanup()
 
@@ -509,7 +654,7 @@ def main():
     blaster = MidiBlaster()
 
     def handle_exit(signum, frame):
-        print(f"[INFO] Received signal {signum}, exiting gracefully.")
+        logger.info(f"Received signal {signum}, exiting gracefully.")
         # No need to call cleanup here as the finally block in run() will handle it.
         sys.exit(0)
 
@@ -519,5 +664,5 @@ def main():
     blaster.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

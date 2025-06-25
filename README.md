@@ -63,6 +63,48 @@ The installation script will:
 - Set up the systemd service for auto-start
 - Create necessary directories for scripts, soundfonts, and logs
 
+## Development
+
+This project uses several Python linting and formatting tools to maintain code quality:
+
+### Setup Development Environment
+
+```bash
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Or install with pip3 (common on Linux/Raspberry Pi)
+pip3 install -r requirements-dev.txt
+```
+
+### Code Formatting and Linting
+
+```bash
+# Format code with Black
+black scripts/
+
+# Sort imports with isort
+isort scripts/
+
+# Check code style with flake8
+flake8 scripts/
+```
+
+### Pre-commit Setup (Optional)
+
+You can set up pre-commit hooks to automatically format and lint your code:
+
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the git hook scripts
+pre-commit install
+
+# Run against all files
+pre-commit run --all-files
+```
+
 ## Directory Structure
 
 - `/home/<user>/scripts/` - Contains the main Python script
@@ -119,6 +161,7 @@ This version offers several enhancements while maintaining the core functionalit
 - Improved disk handling and file system updates
 - Runs as a systemd service
 - Better resource management
+- Increased default audio volume
 - State persistence across restarts
 - Thread-safe operation
 - Class-based architecture for better maintainability
